@@ -8,16 +8,14 @@ Usa il modulo in cima alla pagina. Inserisci un nome, il chat ID Telegram (opzio
 
 ### Configurare il canale Telegram
 
-Ogni watchlist **deve** avere un canale Telegram associato. Il bot **@buco_buco_bot** deve essere presente nel canale o gruppo per poter inviare notifiche.
-
 Per collegare un canale o gruppo Telegram a una watchlist:
 
-1. Aggiungi **@buco_buco_bot** al canale o gruppo
+1. Aggiungi il bot vedetta al canale o gruppo
 2. Scrivi `/setup` nel canale
 3. Il bot risponde con il chat ID (un numero come `-100123456789`)
 4. Incollalo nel campo **Telegram chat_id** della watchlist e clicca **Salva impostazioni**
 
-Senza chat ID e senza bot nel canale le notifiche non vengono inviate, ma la watchlist e la mappa funzionano ugualmente.
+Senza chat ID le notifiche non vengono inviate, ma la watchlist e la mappa funzionano ugualmente.
 
 ### Lingua
 
