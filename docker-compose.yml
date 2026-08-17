@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vedetta
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8006:8006"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./srtm_tiles:/app/srtm_tiles

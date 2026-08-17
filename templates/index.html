@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}vedetta{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block body %}
+<div class="landing">
+
+  <!-- Topbar: desktop only -->
+  <div class="home-topbar">
+    <div class="nav-brand">
+      <img src="/static/img/VedettaLogo.png" class="brand-logo" alt="vedetta">
+    </div>
+    <div class="home-topbar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openGuideModal()">{{ t.guide_btn }}</button>
+      <button class="btn btn-primary btn-sm" onclick="openAuthModal()">{{ t.login_btn }}</button>
+      <select class="lang-select">
+        <option value="it"{% if lang == 'it' %} selected{% endif %}>IT</option>
+        <option value="en"{% if lang == 'en' %} selected{% endif %}>EN</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Content row -->
+  <div class="landing-body">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img src="/static/img/VedettaLogo.png" class="brand-logo" alt="vedetta">
+        <!-- Mobile only: account actions in brand bar -->
+        <div class="sidebar-brand-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openGuideModal()">{{ t.guide_btn }}</button>
+          <button class="btn btn-primary btn-sm" onclick="openAuthModal()">{{ t.login_btn }}</button>
+        </div>
+      </div>
+      <!-- Mobile only: language row -->
+      <div class="lang-row">
+        <span>{{ t.lang_label }}</span>
+        <select class="lang-select">
+          <option value="it"{% if lang == 'it' %} selected{% endif %}>IT</option>
+          <option value="en"{% if lang == 'en' %} selected{% endif %}>EN</option>
+        </select>
+      </div>
+
+      <section class="sidebar-section">
+        <label class="field-label">{{ t.nav_watchlist }}</label>
+        <div id="wl-filter" class="wl-filter">
+          {% for wl in watchlists %}
+          <label class="wl-check">
+            <input type="checkbox" value="{{ wl.id }}" checked> {{ wl.name }}
+          </label>
+          {% endfor %}
+        </div>
+      </section>
+
+      <div id="pilot-list" class="pilot-list"></div>
+
+      <div class="sidebar-footer">
+        <span class="muted">{{ t.sidebar_footer }}</span>
+      </div>
+    </aside>
+
+    <!-- Collapse tab -->
+    <div class="sidebar-tab" id="sidebar-toggle" title="Comprimi / espandi">‹</div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+  </div><!-- /landing-body -->
+
+</div><!-- /landing -->
+
+<!-- Auth modal -->
+<div class="modal-overlay" id="auth-modal" style="display:none" onclick="if(event.target===this)closeAuthModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">vedetta</span>
+      <button class="modal-close" onclick="closeAuthModal()">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <div class="modal-tab active" data-tab="login" onclick="switchAuthTab('login')">{{ t.auth_tab_login }}</div>
+      <div class="modal-tab" data-tab="register" onclick="switchAuthTab('register')">{{ t.auth_tab_register }}</div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tab-panel active" data-panel="login">
+        <div id="login-error" class="error-msg" style="display:none"></div>
+        <form id="login-form" class="device-form">
+          <input class="input" id="login-username" placeholder="{{ t.ph_username }}" required autocomplete="username">
+          <input class="input" id="login-password" type="password" placeholder="{{ t.ph_password }}" required autocomplete="current-password">
+          <button class="btn btn-primary" type="submit">{{ t.login_submit }}</button>
+        </form>
+      </div>
+      <div class="modal-tab-panel" data-panel="register">
+        <div id="reg-error" class="error-msg" style="display:none"></div>
+        <form id="register-form" class="device-form">
+          <input class="input" id="reg-username" placeholder="{{ t.ph_username }}" required autocomplete="username">
+          <div class="flex gap-8">
+            <input class="input" id="reg-first-name" placeholder="{{ t.ph_first_name }}" style="margin:0;">
+            <input class="input" id="reg-last-name"  placeholder="{{ t.ph_last_name }}" style="margin:0;">
+          </div>
+          <input class="input" id="reg-email" type="email" placeholder="{{ t.ph_email }}">
+          <input class="input" id="reg-emergency-phone" placeholder="{{ t.ph_phone }}">
+          <input class="input" id="reg-password"  type="password" placeholder="{{ t.ph_password_reg }}" required autocomplete="new-password">
+          <input class="input" id="reg-password2" type="password" placeholder="{{ t.ph_confirm_pwd }}" required autocomplete="new-password">
+          <button class="btn btn-primary" type="submit">{{ t.register_submit }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Guide modal -->
+<div class="modal-overlay" id="guide-modal" style="display:none" onclick="if(event.target===this)closeGuideModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">{{ t.guide_modal_title }}</span>
+      <button class="modal-close" onclick="closeGuideModal()">✕</button>
+    </div>
+    <div class="modal-body" id="guide-modal-body"><p class="muted">{{ t.js_help_loading }}</p></div>
+  </div>
+</div>
+
+<script>window.T = {{ t_json | safe }}; window.LANG = '{{ lang }}';</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/map.js?v=8"></script>
+<script>
+(function () {
+  const tab     = document.getElementById('sidebar-toggle');
+  const sidebar = document.getElementById('sidebar');
+
+  // Collapse sidebar on mobile by default
+  if (window.innerWidth <= 640) {
+    sidebar.classList.add('collapsed');
+    tab.textContent = '›';
+    // Leaflet initialised before collapse — force resize after transition
+    setTimeout(function() { if (typeof map !== 'undefined') map.invalidateSize(); }, 100);
+    setTimeout(function() { if (typeof map !== 'undefined') map.invalidateSize(); }, 350);
+  }
+
+  tab.addEventListener('click', function () {
+    const collapsed = sidebar.classList.toggle('collapsed');
+    tab.textContent = collapsed ? '›' : '‹';
+    setTimeout(() => map.invalidateSize(), 260);
+  });
+
+  // Language switcher
+  document.querySelectorAll('.lang-select').forEach(function(s) {
+    s.addEventListener('change', function() {
+      document.cookie = 'lang=' + this.value + ';path=/;max-age=31536000';
+      location.reload();
+    });
+  });
+
+  // Auth modal
+  window.openAuthModal = function () {
+    document.getElementById('auth-modal').style.display = 'flex';
+  };
+  window.closeAuthModal = function () {
+    document.getElementById('auth-modal').style.display = 'none';
+  };
+  window.switchAuthTab = function (tabName) {
+    document.querySelectorAll('#auth-modal .modal-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.tab === tabName));
+    document.querySelectorAll('#auth-modal .modal-tab-panel').forEach(p =>
+      p.classList.toggle('active', p.dataset.panel === tabName));
+  };
+
+  // Guide modal
+  function _inlineMd(text) {
+    return text
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,'<em>$1</em>')
+      .replace(/\[(.+?)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function _renderMd(md) {
+    const lines = md.split('\n');
+    let html = '', i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (line.startsWith('### ')) { html += `<h3>${_inlineMd(line.slice(4))}</h3>`; i++; }
+      else if (line.startsWith('## ')) { html += `<h2>${_inlineMd(line.slice(3))}</h2>`; i++; }
+      else if (line.startsWith('- ')) {
+        html += '<ul>';
+        while (i < lines.length && lines[i].startsWith('- ')) { html += `<li>${_inlineMd(lines[i].slice(2))}</li>`; i++; }
+        html += '</ul>';
+      } else if (line.trim() === '') { i++; }
+      else {
+        let para = line.trim(); i++;
+        while (i < lines.length && lines[i].trim() !== '' && !lines[i].startsWith('#') && !lines[i].startsWith('- ')) {
+          para += ' ' + lines[i].trim(); i++;
+        }
+        html += `<p>${_inlineMd(para)}</p>`;
+      }
+    }
+    return html;
+  }
+  let _guideLoaded = false;
+  window.openGuideModal = async function () {
+    const overlay = document.getElementById('guide-modal');
+    const body    = document.getElementById('guide-modal-body');
+    overlay.style.display = 'flex';
+    if (!_guideLoaded) {
+      try {
+        const md = await fetch(`/static/docs/${window.LANG}/guide.md`, { cache: 'no-store' }).then(r => r.text());
+        body.innerHTML = _renderMd(md);
+        _guideLoaded = true;
+      } catch(e) {
+        body.innerHTML = '<p class="muted">' + T.js_help_error + '</p>';
+      }
+    }
+  };
+  window.closeGuideModal = function () {
+    document.getElementById('guide-modal').style.display = 'none';
+  };
+
+  // Login
+  document.getElementById('login-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const err = document.getElementById('login-error');
+    err.style.display = 'none';
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (res.ok) { window.location.href = '/dashboard'; return; }
+      const d = await res.json();
+      err.textContent = d.error || T.js_error_generic;
+      err.style.display = 'block';
+    } catch (_) {
+      err.textContent = T.js_error_network;
+      err.style.display = 'block';
+    }
+  });
+
+  // Register
+  document.getElementById('register-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const username  = document.getElementById('reg-username').value.trim();
+    const password  = document.getElementById('reg-password').value;
+    const password2 = document.getElementById('reg-password2').value;
+    const err = document.getElementById('reg-error');
+    err.style.display = 'none';
+    if (password !== password2) {
+      err.textContent = T.js_reg_pwd_mismatch;
+      err.style.display = 'block';
+      return;
+    }
+    if (password.length < 6) {
+      err.textContent = T.js_reg_pwd_too_short;
+      err.style.display = 'block';
+      return;
+    }
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username, password,
+          first_name:      document.getElementById('reg-first-name').value.trim(),
+          last_name:       document.getElementById('reg-last-name').value.trim(),
+          email:           document.getElementById('reg-email').value.trim(),
+          emergency_phone: document.getElementById('reg-emergency-phone').value.trim(),
+        }),
+      });
+      if (res.ok) { window.location.href = '/dashboard'; return; }
+      const d = await res.json();
+      err.textContent = d.error || T.js_error_generic;
+      err.style.display = 'block';
+    } catch (_) {
+      err.textContent = T.js_error_network;
+      err.style.display = 'block';
+    }
+  });
+}());
+</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+# secrets and runtime state — never in the repo
+.env
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# terrain tiles: large, and downloadable from a public source
+srtm_tiles/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

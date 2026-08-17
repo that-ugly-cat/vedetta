@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · vedetta{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block body %}
+<div class="app">
+
+  <!-- Topbar: desktop only -->
+  <div class="home-topbar">
+    <div class="nav-brand">
+      <img src="/static/img/VedettaLogo.png" class="brand-logo" alt="vedetta">
+    </div>
+    <div class="home-topbar-actions">
+      <select class="lang-select">
+        <option value="it"{% if lang == 'it' %} selected{% endif %}>IT</option>
+        <option value="en"{% if lang == 'en' %} selected{% endif %}>EN</option>
+      </select>
+      <span class="muted" style="font-size:12px;">{{ user.username }}</span>
+      <a href="/logout" class="btn btn-ghost btn-sm">{{ t.logout_btn }}</a>
+    </div>
+  </div>
+
+  <!-- Body: nav + main -->
+  <div class="app-body">
+
+  <!-- Nav -->
+  <nav class="nav" id="main-nav">
+    <div class="nav-brand">
+      <img src="/static/img/VedettaLogo.png" class="brand-logo" alt="vedetta">
+    </div>
+    <!-- Mobile only: language row -->
+    <div class="lang-row">
+      <span>{{ t.lang_label }}</span>
+      <select class="lang-select">
+        <option value="it"{% if lang == 'it' %} selected{% endif %}>IT</option>
+        <option value="en"{% if lang == 'en' %} selected{% endif %}>EN</option>
+      </select>
+    </div>
+
+    <div class="nav-body">
+    <div class="nav-section-label">{{ t.nav_pilot }}</div>
+    <div class="nav-item active" data-section="my-devices">
+      <span class="nav-icon">📡</span> <span>{{ t.nav_my_devices }}</span>
+    </div>
+    <div class="nav-item" data-section="my-watchlists">
+      <span class="nav-icon">👁️</span> <span>{{ t.nav_watchlist }}</span>
+    </div>
+    <div class="nav-item" data-section="live-map">
+      <span class="nav-icon">🗺️</span> <span>{{ t.nav_live_map }}</span>
+    </div>
+    <div class="nav-item" data-section="my-profile">
+      <span class="nav-icon">👤</span> <span>{{ t.nav_my_profile }}</span>
+    </div>
+
+    {% if user.role == 'admin' %}
+    <div class="nav-section-label">{{ t.nav_admin }}</div>
+    <div class="nav-item" data-section="admin-notifications">
+      <span class="nav-icon">🔔</span> <span>{{ t.nav_notifications }}</span>
+    </div>
+    <div class="nav-item" data-section="admin-watchlists">
+      <span class="nav-icon">⚙️</span> <span>{{ t.nav_watchlist }}</span>
+    </div>
+    <div class="nav-item" data-section="admin-users">
+      <span class="nav-icon">👤</span> <span>{{ t.nav_users }}</span>
+    </div>
+    <div class="nav-item" data-section="admin-config">
+      <span class="nav-icon">🎚️</span> <span>{{ t.nav_config }}</span>
+    </div>
+    {% endif %}
+    </div><!-- /nav-body -->
+
+    <div class="nav-footer">
+      <span>{{ user.username }}</span> ·
+      <a href="/logout">{{ t.logout_btn }}</a>
+    </div>
+  </nav>
+
+  <!-- Nav collapse tab -->
+  <div class="nav-tab" id="nav-toggle" title="Comprimi / espandi">‹</div>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- My Devices -->
+    <div class="section active" id="section-my-devices">
+      <h1 class="page-title">{{ t.page_my_devices }} <button class="help-btn" onclick="openHelp('devices','{{ t.page_my_devices }}')">?</button></h1>
+      <div class="card">
+        <div class="card-title">{{ t.card_registered }}</div>
+        <div class="table-wrap">
+          <table id="my-devices-table">
+            <thead>
+              <tr><th>{{ t.th_name }}</th><th>{{ t.th_sources }}</th><th></th></tr>
+            </thead>
+            <tbody id="my-devices-body">
+              <tr><td colspan="3" class="muted">{{ t.js_loading }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="device-form-title">{{ t.card_add_device }}</div>
+        <form class="device-form" id="device-form">
+          <input type="hidden" id="device-edit-id">
+          <input class="input" id="device-name" placeholder="{{ t.ph_device_name }}" required>
+          <p class="field-label" style="margin-top:4px;">{{ t.label_sources }}</p>
+          <div class="sources-grid">
+            <div class="source-row"><span class="source-label">FANET</span>       <input class="input" id="src-fanet"      placeholder="0A05EB" style="margin:0"></div>
+            <div class="source-row"><span class="source-label">FLARM</span>       <input class="input" id="src-flarm"      placeholder="0A076B" style="margin:0"></div>
+            <div class="source-row"><span class="source-label">OGN Tracker</span> <input class="input" id="src-ogntracker" placeholder="E3BDED" style="margin:0"></div>
+            <div class="source-row"><span class="source-label">Naviter</span>     <input class="input" id="src-naviter"    placeholder="FE5829" style="margin:0"></div>
+            <div class="source-row"><span class="source-label">ICAO</span>        <input class="input" id="src-icao"       placeholder="202508" style="margin:0"></div>
+            <div class="source-row"><span class="source-label">PureTrack</span>   <input class="input" id="src-puretrack"  placeholder="giovanni-spitale-1" style="margin:0"></div>
+            <div class="source-row"><span class="source-label">GrappaSafe</span>  <input class="input" id="src-grappasafe"  placeholder="{{ t.ph_ingest_token }}" style="margin:0"><button class="btn btn-ghost btn-sm" type="button" id="src-grappasafe-gen" style="white-space:nowrap;">{{ t.btn_generate }}</button></div>
+          </div>
+          <p class="muted" style="font-size:11px;margin-top:6px;">{{ t.hint_ingest_token }}</p>
+          <div class="flex gap-8 mt-8" style="align-items:center;">
+            <label class="field-label" style="margin:0;white-space:nowrap;">{{ t.label_pin_color }}</label>
+            <input type="color" id="device-color" value="#4a9eff">
+          </div>
+          <div class="flex gap-8 mt-8">
+            <button class="btn btn-primary" type="submit">{{ t.btn_save }}</button>
+            <button class="btn btn-ghost" type="button" id="device-cancel" style="display:none">{{ t.btn_cancel }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- My Watchlists -->
+    <div class="section" id="section-my-watchlists">
+      <h1 class="page-title">{{ t.page_watchlist }} <button class="help-btn" onclick="openHelp('watchlist','{{ t.page_watchlist }}')">?</button></h1>
+      <div id="my-watchlists-container">
+        <p class="muted">{{ t.js_loading }}</p>
+      </div>
+    </div>
+
+    <!-- Live Map -->
+    <div class="section" id="section-live-map">
+      <div class="map-wl-overlay">
+        <label class="field-label" style="margin:0;white-space:nowrap;">{{ t.label_watchlist }}</label>
+        <select class="select" id="dash-wl-select">
+          <option value="">{{ t.map_all }}</option>
+          {% for wl in watchlists %}
+          <option value="{{ wl.id }}">{{ wl.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="dash-map"></div>
+    </div>
+
+    <!-- Admin: Notifications -->
+    <div class="section" id="section-admin-notifications">
+      <h1 class="page-title">{{ t.page_notifications }} <button class="help-btn" onclick="openHelp('admin-notifications','{{ t.page_notifications }}')">?</button></h1>
+      <div class="card">
+        <div class="card-title">{{ t.card_select_wl }}</div>
+        <select class="select" id="admin-wl-notif" style="max-width:300px;"></select>
+      </div>
+      <div class="card hidden" id="notif-card">
+        <div class="card-title">{{ t.card_config_notif }}</div>
+        <div class="notif-grid" id="notif-grid"></div>
+      </div>
+    </div>
+
+    <!-- Admin: Watchlist Settings -->
+    <div class="section" id="section-admin-watchlists">
+      <h1 class="page-title">{{ t.page_admin_wl }} <button class="help-btn" onclick="openHelp('admin-watchlists','{{ t.page_admin_wl }}')">?</button></h1>
+
+      <div class="card">
+        <div class="card-title">{{ t.card_new_wl }}</div>
+        <form class="device-form" id="new-wl-form">
+          <input class="input" id="new-wl-name"    placeholder="{{ t.ph_wl_name }}" required>
+          <input class="input" id="new-wl-chat-id" placeholder="{{ t.ph_wl_chat }}">
+          <select class="select" id="new-wl-lang">
+            <option value="en">{{ t.wl_lang_en }}</option>
+            <option value="it">{{ t.wl_lang_it }}</option>
+          </select>
+          <button class="btn btn-primary btn-sm" style="width:auto;" type="submit">{{ t.btn_create_wl }}</button>
+        </form>
+      </div>
+
+      <div id="wl-settings-list"></div>
+    </div>
+
+    <!-- Admin: Thresholds -->
+    <div class="section" id="section-admin-config">
+      <h1 class="page-title">{{ t.page_config }} <button class="help-btn" onclick="openHelp('admin-config','{{ t.page_config }}')">?</button></h1>
+      <div class="card">
+        <div class="card-title">{{ t.card_config }}</div>
+        <p class="muted" style="font-size:12px;margin-bottom:12px;">{{ t.hint_config }}</p>
+        <div id="config-groups"></div>
+      </div>
+    </div>
+
+    <!-- Admin: Users -->
+    <div class="section" id="section-admin-users">
+      <h1 class="page-title">{{ t.page_users }} <button class="help-btn" onclick="openHelp('admin-users','{{ t.page_users }}')">?</button></h1>
+
+      <div class="card">
+        <div class="card-title">{{ t.card_all_users }}</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>{{ t.th_username }}</th><th>{{ t.th_name }}</th><th>{{ t.th_role }}</th><th></th></tr></thead>
+            <tbody id="admin-users-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card hidden" id="edit-user-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="card-title" style="margin:0;">{{ t.card_edit_user }}: <span id="edit-user-label"></span></div>
+          <button class="btn btn-ghost btn-sm" onclick="cancelEditUser()">✕ {{ t.btn_cancel }}</button>
+        </div>
+        <form class="device-form" id="edit-user-form">
+          <input type="hidden" id="edit-user-id">
+          <div class="flex gap-8">
+            <input class="input" id="edit-first-name" placeholder="{{ t.ph_first_name }}" style="margin:0;">
+            <input class="input" id="edit-last-name"  placeholder="{{ t.ph_last_name }}" style="margin:0;">
+          </div>
+          <input class="input" id="edit-email"          placeholder="{{ t.ph_email }}" type="email">
+          <input class="input" id="edit-emergency-phone" placeholder="{{ t.ph_phone }}">
+          <div class="flex gap-8" style="align-items:center;">
+            <label class="field-label" style="margin:0;white-space:nowrap;">{{ t.th_role }}</label>
+            <select class="select" id="edit-role" style="margin:0;max-width:120px;">
+              <option value="pilot">Pilot</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="flex gap-8 mt-8">
+            <button class="btn btn-primary btn-sm" style="width:auto;" type="submit">{{ t.btn_save }}</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-title">{{ t.card_new_user }}</div>
+        <form class="device-form" id="new-user-form">
+          <div class="flex gap-8">
+            <input class="input" id="new-username" placeholder="{{ t.ph_username }}" required style="margin:0;">
+            <input class="input" id="new-password" type="password" placeholder="{{ t.ph_password }}" required style="margin:0;">
+            <select class="select" id="new-role" style="margin:0;max-width:120px;">
+              <option value="pilot">Pilot</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" style="width:auto;margin-top:8px;" type="submit">{{ t.btn_create_user }}</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- My Profile -->
+    <div class="section" id="section-my-profile">
+      <h1 class="page-title">{{ t.page_my_profile }} <button class="help-btn" onclick="openHelp('my-profile','{{ t.page_my_profile }}')">?</button></h1>
+
+      <div class="card">
+        <div class="card-title">{{ t.card_profile }}</div>
+        <p class="field-label" style="margin-bottom:4px;">{{ t.label_username }}</p>
+        <p id="my-username" style="font-weight:600;margin-bottom:16px;">—</p>
+        <form class="device-form" id="my-profile-form">
+          <div class="flex gap-8">
+            <input class="input" id="my-first-name" placeholder="{{ t.ph_first_name }}" style="margin:0;">
+            <input class="input" id="my-last-name"  placeholder="{{ t.ph_last_name }}" style="margin:0;">
+          </div>
+          <input class="input" id="my-email" type="email" placeholder="{{ t.ph_email }}">
+          <input class="input" id="my-emergency-phone" placeholder="{{ t.ph_phone }}">
+          <button class="btn btn-primary btn-sm" style="width:auto;" type="submit">{{ t.btn_save_profile }}</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-title">{{ t.card_change_pwd }}</div>
+        <form class="device-form" id="my-password-form">
+          <input class="input" id="my-current-pwd" type="password" placeholder="{{ t.ph_current_pwd }}" required>
+          <input class="input" id="my-new-pwd"     type="password" placeholder="{{ t.ph_new_pwd }}" required>
+          <input class="input" id="my-new-pwd2"    type="password" placeholder="{{ t.ph_confirm_new_pwd }}" required>
+          <button class="btn btn-primary btn-sm" style="width:auto;" type="submit">{{ t.btn_change_pwd }}</button>
+        </form>
+      </div>
+    </div>
+
+  </main>
+
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<!-- Help modal -->
+<div class="modal-overlay" id="help-modal" style="display:none" onclick="if(event.target===this)closeHelp()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="help-modal-title">{{ t.help_title }}</span>
+      <button class="modal-close" onclick="closeHelp()">✕</button>
+    </div>
+    <div class="modal-body" id="help-modal-body"></div>
+  </div>
+</div>
+
+<script>window.T = {{ t_json | safe }}; window.LANG = '{{ lang }}';</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/dashboard.js?v=19"></script>
+<script>
+(function () {
+  // Language switcher
+  document.querySelectorAll('.lang-select').forEach(function(s) {
+    s.addEventListener('change', function() {
+      document.cookie = 'lang=' + this.value + ';path=/;max-age=31536000';
+      location.reload();
+    });
+  });
+
+  const tab = document.getElementById('nav-toggle');
+  const nav = document.getElementById('main-nav');
+  if (tab && nav) {
+    tab.addEventListener('click', function () {
+      const collapsed = nav.classList.toggle('collapsed');
+      tab.textContent = collapsed ? '›' : '‹';
+      setTimeout(() => { if (dashMap) dashMap.invalidateSize(); }, 260);
+    });
+  }
+}());
+</script>
+{% endblock %}
