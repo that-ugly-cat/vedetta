@@ -88,8 +88,7 @@ async def index(request: Request):
     if get_current_user(request):
         return RedirectResponse("/dashboard", status_code=303)
     lang = _get_lang(request)
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "watchlists": get_watchlists(),
         "t": TRANSLATIONS[lang],
         "lang": lang,
@@ -109,8 +108,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         request.session["user"] = {"id": row["id"], "username": username, "role": row["role"]}
         return RedirectResponse("/dashboard", status_code=303)
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "watchlists": get_watchlists(),
         "error": "Credenziali non valide.",
     }, status_code=401)
@@ -128,8 +126,7 @@ async def dashboard(request: Request):
     if redir:
         return redir
     lang = _get_lang(request)
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "dashboard.html", {
         "user": user,
         "watchlists": get_user_watchlists(user["id"]),
         "t": TRANSLATIONS[lang],
